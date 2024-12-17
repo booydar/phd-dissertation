@@ -1,5 +1,12 @@
 LaTeX-шаблон для русской кандидатской диссертации и её автореферата.
 
+## Useful commands
+Run compilation
+`latexmk -xelatex -bibtex dissertation.tex`
+
+Cleanup
+`find . -type f \( -name "*.aux" -o -name "*.bbl" -o -name "*.bcf" -o -name "*.blg" -o -name "*.log" -o -name "*.out" -o -name "*.toc" -o -name "*.xml" \) -delete`
+
 ## Особенности
 * Кодировка: UTF-8.
 * Стандарт: ГОСТ Р 7.0.11-2011.
