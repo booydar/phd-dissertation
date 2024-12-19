@@ -1,0 +1,135 @@
+\chapter{Аугментация предобученных моделей}\label{ch:ch3}
+
+\section{Кодировщик}\label{sec:ch3/sect1}
+
+Для проверки нашего подхода в условиях реального применения мы используем популярный бенчмарк Hyperpartisan news для классификации длинных текстов \cite{kiesel2019semeval}. Вместо обучения модели RMT с нуля мы добавляем механизм рекуррентной памяти к наиболее распространенным моделям из библиотеки HuggingFace Transformers \cite{wolf2020transformers}. В частности, предварительно обученные модели BERT-base, RoBERTa-base, DeBERTa-base и T5-base были дополнены памятью размером 10, увеличивающей входные данные из 500 токенов, и дообучены на целевой задаче.
+
+\begin{table}
+\centering
+\begin{tabular}{lcccc}
+\hline
+\multirow{2}{*}{Model (input size)} & \multicolumn{4}{c}{Number of segments} \\
+                                    & 1         & 2         & 3         & 4         \\
+\hline
+Big Bird (4096) \cite{zaheer2020big} & 92.20     &           &           &           \\
+Longformer (4096) \cite{beltagy2020longformer} & 94.80     &           &           &           \\
+Graph-roberta (512x100) \cite{xu2021contrastive} & 96.15     &           &           &           \\
+ERNIE-DOC-Large (640) \cite{ding-etal-2021-ernie-doc} & \underline{96.60} &           &           &           \\
+ERNIE-Sparse (4096) \cite{liu2022ernie} & 92.81     &           &           &           \\
+\hline
+RMT bert-base-case (512) & 91.60 & 94.12 & 93.06 & 94.34 \\
+RMT roberta-base (512) & 94.87 & \textbf{97.20} & \textbf{96.72} & \underline{\textbf{98.11}} \\
+RMT deberta-v3-base (512) & 94.17 & 96.78 & 94.80 & 94.80 \\
+RMT t5-base (512) & \textbf{94.99} & 95.32 & 96.12 & 97.20 \\
+\hline
+\end{tabular}
+\caption{\textbf{Hyperpartisan news detection.} Models starting with RMT are taken from HuggingFace Transformers and augmented with 10 memory tokens and recurrence before fine-tuning. Train/valid/test split as in \cite{beltagy2020longformer} and metric is F1.}
+\label{tab:hyp}
+\end{table}    
+
+
+Предложенный механизм рекуррентной памяти изменяет только обработку входа и градиентные потоки в дополненных моделях. Это дает существенное преимущество, так как память можно легко интегрировать в уже обученные модели. Как показано в \cref{tab:hyp}, результаты оценки демонстрируют производительность четырех моделей с дополненной памятью, дообученных для классификации длинных текстов. Включение 10 токенов памяти во входную последовательность длиной 512 токенов позволяет обрабатывать тексты длиной до 2000 токенов и существенно повышает метрики у большинства моделей. Особенно примечательно, что сочетание рекуррентной памяти с RoBERTa-base обеспечивает лучшие результаты для задачи классификации Hyperpartisan news \cite{kiesel2019semeval}. При этом конкурирующие модели с длиной входной последовательности 4096 токенов — что более чем в два раза превышает расширенный вход RMT — демонстрируют более низкую производительность.
+
+
+\section{Memorization Tasks}
+
+
+To test memorization abilities, we constructed synthetic datasets that require memorization of simple facts and basic reasoning. The task input consists of one or several facts and a question that can be answered only by using all of these facts. To increase the task difficulty, we added natural language text unrelated to the questions or answers. This text acts as noise, so the model's task is to separate facts from irrelevant text and use them to answer the questions. The task is formulated as a 6-class classification, with each class representing a separate answer option.
+
+Facts are generated using the bAbI dataset \citep{WestonBCM15}, while the background text is sourced from questions in the QuALITY \citep{pang-etal-2022-quality} long QA dataset.
+
+\begin{verbatim}
+Background text: ... He was a big man, broad-shouldered and still thin-waisted. 
+Eddie found it easy to believe the stories he had heard about his father ...
+\end{verbatim}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.65\linewidth]{imgs/rmt_tasks_simple.pdf}
+\caption{\small\textbf{Memory-intensive synthetic tasks}. Synthetic tasks and the required RMT operations to solve them are presented. In the Memorize task, a fact statement is placed at the start of the sequence. In the Detect and Memorize task, a fact is randomly placed within a text sequence, making its detection more challenging. In the Reasoning task, two facts required to provide an answer are randomly placed within the text. For all tasks, the question is at the end of the sequence. 'mem' denotes memory tokens, 'Q' represents the question, and 'A' signifies the answer.}
+\label{tasks-approaches}
+\end{figure}
+
+
+The first task tests the ability of RMT to write and store information in memory for an extended time (Figure~\ref{tasks-approaches}, top). In the simplest case, the fact is always located at the beginning of the input, and the question is always at the end. The amount of irrelevant text between the question and answer is gradually increased, so that the entire input does not fit into a single model input.
+
+\begin{verbatim}
+Fact: Daniel went back to the hallway.
+Question: Where is Daniel?
+Answer: hallway
+\end{verbatim}
+
+Fact detection increases the task difficulty by moving the fact to a random position in the input (Figure~\ref{tasks-approaches}, middle). This requires the model to first distinguish the fact from irrelevant text, write it to memory, and later use it to answer the question located at the end.
+
+Another important operation with memory is being able to operate with several facts and current context. To evaluate this function, we use a more complicated task, called "reasoning",
+where two facts are generated and positioned randomly within the input sequence (Figure~\ref{tasks-approaches}, bottom). The question posed at the end of the sequence is formulated in a way that any of the facts must be used to answer the question correctly (i.e., the \textit{Two Argument Relation} bAbI task).
+
+\begin{verbatim}
+Fact1: The hallway is east of the bathroom.
+Fact2: The bedroom is west of the bathroom.
+Question: What is the bathroom east of?
+Answer: bedroom
+\end{verbatim}
+
+\section{Learning Memory Operations}
+
+We use the pretrained models from Hugging Face Transformers \citep{wolf2020transformers} as backbones for RMT in our experiments. All models are augmented with memory and trained using the AdamW optimizer \citep{loshchilov2018adamw} with linear learning rate scheduling and warmup. Technical details of training and full set of hyperparameters will be available in the Appendix and training scripts in the GitHub repository.% \footnote{\url{https://github.com/booydar/t5-experiments/tree/???}}.
+Memorization task experiments were conducted using 4-8 Nvidia 1080ti GPUs. For longer sequences, we speed up evaluation by switching to a single 40GB Nvidia A100. 
+
+\begin{figure}
+\centering
+\includegraphics[width=0.45\linewidth]{imgs/extrapolate.pdf}
+\includegraphics[width=0.45\linewidth]{imgs/extrapolate_random.pdf} \
+\includegraphics[width=0.45\linewidth]{imgs/extrapolate_reason.pdf}
+\caption{\small\textbf{Generalization of memory retrieval}. Evaluation of checkpoints trained on 1-7 segment tasks with memory size 10 on varying input lengths. \textbf{a}: Memorization task, \textbf{b}: Detection \& memorization, \textbf{c}: Reasoning. Models trained on more than 5 segments generalize well on longer tasks.}
+\label{extrapolate}
+\end{figure}
+
+
+\subsection{Curriculum Learning}
+
+We observe that using a training schedule greatly improves solution accuracy and stability. Initially, RMT is trained on shorter versions of the task, and upon training convergence, the task length is increased by adding one more segment. The curriculum learning process continues until the desired input length is reached.
+
+In our experiments, we begin with sequences that fit in a single segment. The practical segment size is 499, as 3 special tokens of BERT and 10 placeholders for memory are reserved from the model input, sized 512. We notice that after training on shorter tasks, it is easier for RMT to solve longer versions as it converges to the perfect solution using fewer training steps.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{imgs/extrapolate_long_log+tok_linear.pdf}
+\caption{\small\textbf{Recurrent Memory Transformer retains information across up to $2\times10^6$ tokens}. By augmenting a pre-trained BERT model with recurrent memory \citep{rmt_2022}, we enabled it to store task-specific information across 7 segments of 512 tokens each. During inference, the model effectively utilized memory for up to 4,096 segments with a total length of 2,048,000 tokens—significantly exceeding the largest input size reported for transformer models (64K tokens for CoLT5~\citep{ainslie2023colt5}, and 32K tokens for GPT-4~\citep{openai2023gpt4}, and 100K tokens for Claude). This augmentation maintains the base model's memory size at 3.6 GB in our experiments.}
+\label{extrapolate-long}
+\end{figure}
+
+\subsection{Extrapolation Abilities}
+\label{sec:extrapolation_abilites}
+
+How well does RMT generalize to different sequence lengths? To answer this question, we evaluate models trained on a varying number of segments to solve tasks of larger lengths (Figure~\ref{extrapolate}). We observe that most models tend to perform well on shorter tasks. The only exception is the single-segment reasoning task, which becomes hard to solve once the model is trained on longer sequences. One possible explanation is that since the task size exceeds one segment, the model stops expecting the question in the first segment, leading to quality degradation.
+
+
+Interestingly, the ability of RMT to generalize to longer sequences also emerges with a growing number of training segments. After being trained on 5 or more segments, RMT can generalize nearly perfectly for tasks twice as long. To test the limits of generalization, we increase the validation task size up to 4096 segments or 2,043,904 tokens (Figure~\ref{extrapolate-long}). RMT holds up surprisingly well on such long sequences, with Detect \& memorize being the easiest and Reasoning task the most complex.
+
+
+
+\begin{figure}[h]
+\includegraphics[width=1\linewidth]{imgs/rmt-basic-attention-maps-v3.pdf}
+\caption{\small\textbf{Attention maps for operations with memory}. These heatmaps show operations performed during specific moments of a 4-segment reasoning task. The darkness of each pixel depends on the attention value between the corresponding key and value. From left to right: RMT detects the first fact and writes its content to memory ([mem] tokens); the second segment contains no information, so the memory keeps the content unchanged; RMT detects the second fact in reasoning tasks and appends it to memory; CLS reads information from the memory to answer the question.}
+\label{mem_operations}
+\end{figure}
+
+By examining the RMT attention on specific segments, as shown in Figure~\ref{mem_operations}, we observe that memory operations correspond to particular patterns in attention. Furthermore, the high extrapolation performance on extremely long sequences, as presented in Section~\ref{sec:extrapolation_abilites}, demonstrates the effectiveness of learned memory operations, even when used thousands of times. The RMT does not have any specific memory read/write modules and Transformer learns how to operate with memory recurrently.
+This is particularly impressive, considering that these operations were not explicitly motivated by the task loss.
+
+\section{Декодировщики}\label{sec:ch3/sect2}
+
+
+% \begin{table*}[t!]
+% \footnotesize
+% \scalebox{0.87}{
+%     \begin{tabular}
+%     \end{tabular}
+% }
+
+% \vspace{1mm}
+% \caption{}
+% \label{}
+% \end{table*}
+
