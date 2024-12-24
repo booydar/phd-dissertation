@@ -19,9 +19,7 @@ We examine the effects of this imputation and show that, on both inductive and t
 
 
 Knowledge graphs (KG) represent structured information in the form of a directed multi-relational graph with entities as the graph's nodes and relations between entities as the graph's edges. Entities in such graphs could be both real-world objects or abstract concepts. KGs are represented as a set of triplets with representation entities and a relation between them, i.e. (head entity, relation, tail entity) or (h, r, t) for short. Due to KGs' recent rapid development, they are now widely used in a variety of applications, including data mining, information retrieval, question answering, and recommendation systems. However, most real-world knowledge graphs suffer from incompleteness. Knowledge graph completion (KGC) algorithms attempt to fill in the gaps in the KG in order to solve this problem.
-% Such methods try to infer new facts from existing ones in KG.
 
-% Moreover, these methods are applicable  for other downstream tasks like Question Answering over KG (QA), recommendation systems, intelligent documents retrieval, etc.
 
 \begin{figure}[h]
   \centering
@@ -35,113 +33,60 @@ Knowledge graphs (KG) represent structured information in the form of a directed
 
 %KGE
 KG link prediction commonly involves learning knowledge graph embeddings (KGE), which capture structural and semantic information about KG nodes, relations, and their neighborhoods in a way that a simple distance-based function would be able to distinguish real triplets from false ones.
-% Such models use KGEs to determine if new facts are plausible using a scoring function (e.g., cosine similarity). 
-% KGEs are trained to represent structural and semantic information of KG nodes, relations and their neighborhoods in a way that a simple scoring function would be able to distinguish real triplets from false ones. Therefore, such extensive information incorporated in KG should be fully encoded in shallow KGEs.
-% These embeddings allow a simple scoring function to distinguish between real and false triplets, and therefore should fully encode the extensive information within a KG. 
-% , making it challenging for these models to operate on variety of facts related abstract and real-world concepts.
-% Moreover, due to the fact that KGE models require the creation of a unique embedding for each node and relation, the size of the models and inference time increase linearly with the size of KG. Another drawback is that updating KG implies re-training KGEs instead of just learning the new embeddings for updated entities or relations.
+
 However, building a unique embedding for each node and relation leads to a linear increase in model size and inference time as the KG size grows. Another drawback is that KG updating requires full re-training of KGEs, rather than simply learning new embeddings for updated entities or relations.
 
-%LMs and KGs
 Application of language models (LMs) to KGC tasks is a promising direction~\cite{pan2023unifying}. State-of-the-art performance in most natural language processing (NLP) tasks has recently been demonstrated by pre-trained language models like BERT~\cite{devlin-etal-2019-bert}
-% RoBERTa~\cite{liu2019roberta}
 and more recent large or foundational language models~\cite{gpt3, chowdhery2022palm, touvron2023llama}.
-% By considering a triplet in the KG as a text sequence, models like KG-BERT~\cite{yao2019kgbert} and BERTRL~\cite{zha2022bertrl} use pre-trained language models and demonstrate state-of-the-art performance on the downstream KGC tasks.
+
 Language models-based approaches, such as KG-BERT~\cite{yao2019kgbert}, BERTRL~\cite{zha2022bertrl}, KGT5~\cite{kgt5} and GenKGC~\cite{xie2022discrimination} consider a triplet in the KG as a text sequence.
 While distance-based methods incorporate more structural information in dense embeddings, language models tend to capture more semantic information contained in both relations and entities of KG, enabling such models to embed previously unseen entities and operate on new facts based on semantic information contained in triplets textual representation.
-% Thus, KGT5 positions both KG link prediction and QA over KG as sequence-to-sequence tasks. T5 Transformer model~\cite{raffel2020t5} trained to generate target node using textually verbalized triplets, achieved competitive performance and resulted in a scalable and simple framework for KG and QA tasks.
 Thus, KGT5 positions KG link prediction as sequence-to-sequence tasks. KGT5 model trained to generate target node using textually verbalized triplets achieves competitive performance and offers a scalable and simple framework for KGC and QA tasks.
 
-% using upto 98\% fewer parameters than KGE models.
-% However, it is difficult for these models to capture the internal structural information of KG.
 
-% motivation of context in KGC methods
 Current methods based on language models (KG-BERT, BERTRL, KGT5, and GenKGC) rely only on information that can be extracted from LMs parameters. However, since KG itself is available, we build a method that relies on both internal language model knowledge and external information from KG. For the link prediction task ($h$, $r$, $?$), we propose to extract nodes and relations adjacent to $h$ from the KG, i.e. the neighborhood. Node $h$ with its neighborhood \textit{better together} represents $h$ itself: neighborhood may contain clues such as Palo Alto and United States of America for the triplet (Steve Jobs, place of birth, ?) on Figure~\ref{fig:overall_pipeline}.
 
-% contex in KGC methods related work
 Though some efforts have been made to incorporate neighborhood into the KGC algorithms ~\cite{chen2020hitter}, our proposed pipeline inherits the benefits of generative LLMs compared to KGE approaches: (1) scalability and size of the model, (2) applicability to both transductive and inductive KGs due to an ability to generalize unseen entities, (3) no need to rank all possible candidate triplets due to direct generation of tail entity. 
 Also, a concurrent work by the KGT5 authors, KGT5-context~\cite{kochsiek2023friendly}, proposed a similar idea of integrating node neighborhood in the context of the generative LM model, supporting the main concerns and results of our study.
-%However, KGT5-context explores the applicability of neighborhood information for KGC only in transductive setup. Also, neighborhood sampling in KGT5-context was performed randomly instead of prioritizing the neighbors, which makes the results less reproducible and does not consider the importance of neighbors in the context of a query. 
-
-
-% Our contributions are as follows: (1) we propose to use node neighborhood along with the incomplete triplet as text sequence and evaluate this approach on link prediction task across different language models and in both inductive and transductive splits of Wikidata; (2) we analyze the impact of neighborhood on model predictions, showing a promising way to significantly improve KGC.
 
 
  \textbf{Our contributions are as follows:}
- % (1) we propose a generative graph completion method that combines language models with graph neighborhood information;
  (1) we propose a generative graph completion method which effectively integrates language models with graph neighborhood information.
- % (2) we show that multiple generative language models achieve strong link prediction performance improvement by incorporating graph information in both transductive and inductive settings, including state-of-the-art results on the inductive ILPC dataset;
  (2) We show that incorporating graph information into multiple generative language models achieve strong performance improvement of link prediction in both transductive and inductive settings. Moreover, our approach achieves state-of-the-art results on the inductive ILPC dataset.
- % (3) we study how the model benefits from adding neighbors.
  (3) We analyze and evaluate the impact of adding neighborhood information on the performance of the models.
  
 \section{Methods}
-%- KG formal definition, link prediction taks formal definition
-%- KGE models -  KGE approach expressed in a formal way, types of KGE models, their advantages and disatvantages \\
-%- Language models for KG - approaches, their advantages and disatvantages \\
-%- Generatoinal models? \\
 
 One can represent KG more formally as $\mathcal{G} = (\mathcal{T}, \mathcal{E}, \mathcal{R})$, where $\mathcal{E}$ is a set of entities, $\mathcal{R}$ is a set of relations and $\mathcal{T}$ is a set of triplets $\mathcal{T} \in \mathcal{E} \times \mathcal{R} \times \mathcal{E}$.
-% Also, in the case of KG having supplemental textual descriptions above mentioned formulation can be updated as: $\mathcal{G} = (\mathcal{T}, \mathcal{E}, \mathcal{R}, \mathcal{D})$, where $\mathcal{D}$ is set of textual descriptions of $\mathcal{E}$ and $\mathcal{R}$. 
 Therefore, the formulation of the KGC task is the following: for each triplet $\mathcal{T}_{i} = (h, r, t)$, where $h \in \mathcal{E}, t \in \mathcal{E}, r \in \mathcal{R}$, answer both $(h, r, ?)$ and $(?, r, t)$ queries on the graph $\mathcal{G} /\mathcal{T}_{i}$. The KGC tasks can have different variations depending on the KG type: inductive and transductive. In a transductive setting the KGC task is formulated as follows: given a train KG $\mathcal{G}_{train} = (\mathcal{T}_{train}, \mathcal{E}, \mathcal{R})$ train the model to predict on the inference KG $\mathcal{G}_{inference} = (\mathcal{T}_{inference}, \mathcal{E}, \mathcal{R})$, therefore in the train and inference KG there is a same set of entities and relations. In inductive KGC the model is trained on the KG $\mathcal{G}_{train} = (\mathcal{T}_{train}, \mathcal{R}, \mathcal{E}_{train}$) and predicts the inference KG $\mathcal{G}_{inference} = (\mathcal{T}_{inference}, \mathcal{R}, \mathcal{E}_{inference})$, so the trained model observed only on the entities from train subgraph of KG.
 
 
-% \subsection{Knowledge Graph Embeddings (KGE)}
-% Commonly KGC task is solved by knowledge graph embeddings (KGE) models. These techniques typically learn embeddings in a geometric space, assigning vector embeddings to each entity and relation in KG. They use model-specific scoring functions $f(h, r, t)$ to evaluate the plausibility of triplet $(h, r, t)$ using corresponding embeddings of head $h$, relation $r$, and tail $t$. After learning such embeddings, they can be fine-tuned to downstream tasks such as KGQA, recommendation systems, etc. Examples of KGE models are TransE [], ComplEx [], SimplE [], and RotatE [], and mostly they differ in scoring function $f(h, r, t)$.
-% \subsection{Graph Neural networks (GNN)}
-% However, learning structural objective alone regarding the reflection of KG structure. Performance can benefit from the local graph topology and structure explicitly, which frequently done through message passing algorithm in Graph Neural Nerworks (GNN). Therefore, efforts have also been made to use GNN in KGC task. Among such models are R-GCN [] that incorporates Graph Convolutional Network (GCN) and knowledge-enhanced GNN [] that used modification of Graph Attention Network (GAC) that was used for recommendations.
-% \subsection{Language models for KGC}
-% In recent years, the NLP field had a revival due to Transformer [] architecture. Pre-trained language models like BERT, RoBERTa, and XLNet have lately shown state-of-the-art performance in all natural language processing (NLP) areas. Coupling such models with self-supervised pretraining enables them to capture both the contextual and semantic information of natural language and even information from other domains [].
-
 We followed the KGT5~\cite{kgt5} approach to the KGC task using an encoder-decoder Transformer based on T5~\cite{raffel2020t5}. The link prediction task was posed as follows: for each triplet $(entity_1, relation, entity_2)$ from KG we had to predict the tail in the queries $(entity_1, relation, ?)$ and $(entity_2, relation^{-1}, ?)$.
 To generate input for the model, we converted such queries into a text form. Apart from the query verbalization only as in KGT5, we formed a neighborhood for the node and relations for each triplet in KG. Thus, verbalized queries and their neighborhoods in the form of text were fed to the input of the model for training (see Figure~\ref{fig:overall_pipeline}) and later to predict incomplete triplets. We form a neighborhood of nodes that have an edge with the triplet head node (1-hop neighbors). The number of adjacent nodes may be too large to fit into the context size of selected language models. Therefore, we sort them based on relation semantic similarity. We take only those verbalized nodes and relations that fit into the max sequence length. 
-% We provide more details on neighborhood formation in Appendix~\ref{sec:neighborhood_formation} and verbalization in Appendix~\ref{sec:triplets_verbalization}.
 
 To evaluate our approach to link prediction tasks we used publically available transductive and inductive KGs. Specifically, we used the Wikidata5M~\cite{wang2021kepler} dataset, which is one of the largest publicly available transductive KG up-to-date and large and small versions of ILPC dataset~\cite{ilpc}, the largest fully inductive benchmark. ILPC inference graph size is challenging for modern GNN methods with inductive capabilities ~\cite{ilpc}. Apart from being challenging to solve by common approaches, the ILPC KGs are much more sparse than the transductive Wikidata5M. The graph size and sparseness of the data make the task hard for existing methods and result in modest performance metrics. Still, there were no existing solutions that beat the baseline provided in the ILPC paper. Both used datasets are the subsets of the real-world KG -- Wikidata. Datasets' statistics are provided in the Table~\ref{table:dataset_statistics}).
-% Datasets' statistics are provided in the Table~\ref{table:dataset_statistics}.
 
 We compared models with and without neighborhoods to evaluate our hypothesis that neighborhoods help to \textit{better together} represent graph node. In addition, unlike the KGT5, we experimented with different model configurations, both fine-tuning an existing pre-trained model and training from scratch as common knowledge obtained during language models pre-training might be useful on real-world knowledge graphs like Wikidata.
 
 We used the T5-small with 60M parameters as our base model with both pretrained and randomly initialized weights to evaluate the effect of pretraining of the language model on the KG task.
 We added additional "[SEP]" tokens to the tokenizer with 30K tokens vocabulary to separate query and neighborhood. The model was trained using AdamW optimizer~\cite{loshchilov2018adamw}, 1e-5 learning rate, 10\% dropout, and batch size equals 320. The number of training steps was equal to 5M for the Wikidata5M dataset and 2M for all others. For multi-gpu training, we used the Horovod parallelization framework~\cite{horovod}. In cases where a batch size equal to 320 did not fit GPU, we used gradient accumulation steps. We also benchmarked OpenAI \texttt{gpt-3.5-turbo}\footnote{\texttt{gpt-3.5-turbo-0613}: \url{https://platform.openai.com/docs/models/gpt-3-5}} zero-shot link
 prediction and evaluate the benefits of a neighborhood on LLM. The code for all the described experiments is available at the link\footnote{\url{https://github.com/screemix/kgc-t5-with-neighbors}}.
-%\subsection{Link Prediction}
 \label{sec:training}
-% We posed link prediction task as a seq2seq one using T5 language model. Each triplet $(head_1, relation, head_2)$ in the KG was represented as a so-called direct and inverse queries $(head_1, relation, ?)$ and $(head_2, inverse\ of\ relation, ?)$ correspondingly. Such queries than were verbalized as it was described in appendix sections B-C. Textual representation of direct and inverse queries and their corresponding neighborhoods were  passed to the input of the T5 model.
-% We trained models with teacher forcing using cross-entropy (CE) loss. 
 
 As KGT5, our model produces a probability distribution over all possible tokens in the vocabulary at each step of decoding. Such distribution is penalized for not matching the actual distribution, i.e., for the difference between the real target token at position $i$ and the generated token at step $i$ using CE loss.
-% This procedure is repeated until the end of the sequence token is generated.
+
 Such an approach is principally different from distance-based methods as it does not require generating negative samples to make them further from the target prediction for each training query. In this way, training iteration becomes independent of the KG size.
 
-% \subsection{Link Prediction Inference}
-% \label{sec:inference}
-% In commonly used distance-based models for link prediction, to answer the query $(head, relation, ?)$ one need to score all possible triplets using some function $f$, i.e. calculate $f(head, relation, tail)$, where tail are all the nodes from KG, and f, for an instance, can be a cosine distance that compares two representations of nodes.
 To form predictions, we first verbalize the query  $(head, relation, ?)$ and pass it as an input to the generative model to produce an output sequence, which will be a verbalization of the target entity id.
 For inference, we employed two strategies.
 The first one was sampling $ k $ most probable sequences from the decoder.
 We follow the KGT5~\cite{kgt5} setting and use a sample size of 50. We apply this approach to Wikidata5M datasets as it is transductive. The second option for inference was to search for the closest entities in KG to the generated one. We apply the second approach to ILPC inductive datasets as language models have to generate previously unseen entities. 
-% More details on inference procedure are in Appendix~\ref{sec:inference}.% \\
-
-% , representing a real-world KG employed for a variety of practical downstream tasks in ML and NLP.
-
-
-% control text size with
-% \Huge \huge \LARGE \Large \large \normalsize (default) \small \footnotesize \scriptsize \tiny
-
-% \subsection{Existing baselines}
-% For comparison of current methods as baselines with the approach described in the current paper, we used several models that achieve significant performance on the transductive datasets. Among them are commonly used distance-based KGE models like TransE [] and methods that utilize language models trained on KG verbalizations like KGT5 [], KEPLER, and SimKGC [], which showed state-of-the-art performance up-to-date. We did not re-implemented methods used for comparison but instead used performance statistics provided by the authors of the models. The only exception was the KGT5 model [] as we based on the idea of using the generative T5 [] model with the additional improvement of the KGT5 method in the form of structural information from KG, which is the neighborhood. We implemented a simpler and more readable pipeline for link prediction tasks using the T5 model in which one can include neighborhood information or drop it, therefore, downgrading to a simpler method demonstrated in the KGT5 paper []. And therefore we were able to reproduce the results of the KGT5 model in such a pipline. A comparison of the existing methods and our approach is displayed in Table 2.
-
-%\subsection{Experimental setup}
 
 \begin{table*}[htp]
 \caption{Adding a neighborhood persistently improves results on the link prediction task. We report Hits@k metrics on Wikidata5M, ILPC-small, and ILPC-large test sets. Arrows \up\down~ show the effect of the neighborhood on language models. Neighbors allow to achieve the best performance considering the number of model parameters.}
 \vskip -0.1in
 \label{tab:triplet-results}
 \centering
-% \begin{center}
-% \begin{small}
-% \begin{sc}
 \resizebox{\textwidth}{!}{
 \begin{tabular}{@{}llllllllllll@{}}
 \toprule
@@ -164,70 +109,31 @@ T5-small pre-trained & 0.205 & 0.248 & 0.282 & 0.073 & 0.117 & 0.177 & 0.112 & 0
 T5-small pre-trained + neighbors & 0.306\up & 0.342\up & 0.361\up & 0.076\up & 0.137\up & 0.209\up & 0.114\up & 0.139\up & 0.200\up & 60M\\
 T5-base pre-trained & - & - & - & 0.073 & 0.130 & 0.199 & 0.110 & 0.136	& 0.198 & 220M\\
 T5-base pre-trained + neighbors & - & - & - & 0.082\up & 0.142\up & 0.216\up & 0.116\up & 0.141\up & 0.215\up & 220M \\
-% gpt-3.5-turbo-0613 & - & - & - & 0.123 & 0.195 & 0.224 & - & - & - \\
-% gpt-3.5-turbo-0613 + neighbors & - & - & - & 0.123 & 0.187\down & 0.229\up & - & - & - \\
 
 \bottomrule
 \end{tabular}
 }
-% \end{sc}
-% \end{small}
-% \end{center}
 \vskip -0.1in
 \end{table*}
 
-% % Hits calculated with faiss index
-% \begin{table}
-% \caption{Zero-shot link prediction with ChatGPT (gpt-3.5-turbo-0613).}
-% \vskip -0.1in
-% \label{tab:chatgpt}
-% \begin{center}
-% \begin{small}
-% \begin{sc}
-% \resizebox{0.48\textwidth}{!}{
-% \begin{tabular}{@{}lllllll@{}}
-% \toprule
-% \multirow{2}{*}{Model} & \multicolumn{3}{c}{GPT} & \multicolumn{3}{c}{GPT + NEIGHBORS}  \\
-% \cmidrule(lr){2-4}\cmidrule(lr){5-7}
-% & H@1 & H@3 & H@10 & H@1 & H@3 & H@10 \\
-% \midrule
-% Wikidata5M & - & - & - & - & - & - \\
-% ILPC-small & 0.131 & 0.184 & 0.234 & 0.12 & 0.167 & 0.22 \\
-% ILPC-large & 0,158 & 0,201 & 0,246 & 0,159 & 0,184 & 0,231 \\
-% \end{tabular}
-% }
-% \end{sc}
-% \end{small}
-% \end{center}
-% \vskip -0.1in
-% \end{table}
-
 \section{Results}
 
-%\subsection{Link prediction results}
 
 The hypothesis behind our approach was that neighborhood information incorporated in a context fed to the language model should enhance link prediction of generative LM. Tables~\ref{tab:results} and \ref{tab:chatgpt} demonstrate the performance of our technique on Wikidata5M and ILPC datasets under various conditions, including training a T5 model with and without neighbors, using a pre-trained model or training a model from scratch, and zero-shot with \texttt{gpt-3.5-turbo}. 
 
-% For comparison on Wikidata5M, we contrasted the proposed model with both traditional KGE models, such as ComplEx and TransE, and approaches based on language models, such as KGT5 and SimKGC, the latter of which recently showed cutting-edge results. For comparison on the ILPC dataset, we listed IndNodePiece and IndNodePieceGNN performance, which are state-of-the-art on the recently published dataset.
 These results support the hypothesis that the quality of link prediction increases with the use of neighbors in the context of the generative model in both transductive and inductive settings. Moreover, our approach demonstrated SOTA performance on the ILPC dataset, while on Wikidata we achieved the best result among generative link prediction models, which is still comparable to scores of SOTA graph and LM methods with many more parameters. Relatively small absolute values of scores on the ILPC dataset can be explained by its fully inductive setup and larger sparseness compared to Wikidata5M. Still, there are no publicly available solutions that exceed the baseline score provided by ILPC authors. Our solution overperforms the existing baseline, is elegantly simple, and more interpretable than GNN-based solutions. Experiments on pre-trained models revealed that pre-training speeds up convergence but degrades the quality of the model by a few points compared to the one trained from scratch. 
 
 Also, we demonstrated that neighbors' information enhances performance across different generative models. 
-% Open-source models like T5 and proprietary ones like OpenAI GPTs distributed as model-as-a-service each have their own advantages and limitations. However, OpenAI’s GPT is a black box model that is not available for further alteration and interpretation.
 This includes open-source models such as T5, as well as proprietary models like OpenAI GPTs that are distributed as a model-as-a-service.
 Although both types of models have their own advantages and limitations, it should be noted that OpenAI GPTs are black box models that cannot be modified or interpreted further.
 Usage of OpenAI GPTs is restricted in the case of more specialized or proprietary KGs that can store secure or non-public information.
-% It is important to consider that GPTs training corpora remains publically unknown.
 In the context of our study, OpenAI's \texttt{gpt-3.5-turbo} has a much larger size and cost, compared to smaller and transparent T5, still our approach improves the performance of both models.
 
-% Hits calculated with bare model predictions
 \begin{table}
 \caption{Neighbor information improves zero-shot link prediction with OpenAI \texttt{gpt-3.5-turbo-0613}. *ILPC-Large results were obtained on 5000 random samples from the test set. }
 \vskip -0.1in
 \label{tab:chatgpt}
-% \begin{center}
 \centering
-% \begin{small}
-% \begin{sc}
 \resizebox{0.48\textwidth}{!}{
 \begin{tabular}{@{}lllllll@{}}
 \toprule
@@ -240,18 +146,11 @@ ILPC-small & 0.079 & 0.107 & 0.084\up & 0.118\up  \\
 ILPC-large* & 0.103 & 0.134 & 0.114\up & 0.150\up  \\
 \end{tabular}
 }
-% \end{sc}
-% \end{small}
-% \end{center}
 \vskip -0.2in
 \end{table}
 
-%\subsection{Analysis}
-
-% Experiments demonstrated that models with neighborhood information show greater performance across selected datasets and model architectures.
 To get an understanding of how proposed models learn to use neighboring triplets we compared predictions of models trained with and without graph information in the input. 
 One possible case when neighbors help in link prediction is when a target entity is somehow mentioned in the model input. Because of neighborhood filtering, the target triplet never appears in the model input, however in some cases target entity can occur with different relations or as a substring of another entity in a neighborhood or even in the task itself (Table~\ref{tab:target_inclusion}). 
-%The frequency of such cases and models' scores are shown in Table~\ref{tab:target_inclusion}.
 Despite the tail appearing in input only in a small portion of the test set, the neighborhood model learns to make use of such hints, outperforming the baseline T5 in all selected cases. The high solution rate of more than 4 out of 5 samples with hinted targets supports the importance of properly selected neighborhoods.
 
 \begin{figure}[h]
@@ -263,24 +162,15 @@ Despite the tail appearing in input only in a small portion of the test set, the
 \end{figure}
 
 To evaluate the impact of neighborhoods, we analyzed triplets' importance by sorting them based on how they affect the probability of the target node prediction. 
-%while excluding the triplet itself from the input.
-% We calculated this probability by using the log softmax function and summing up target tokens' probability in the model's logits outputted for altered input for all samples of the Wikidata5M dataset.
-%We sorted the triplets in descending order of the probability of the target. 
-%The top ten triplets having the smaller probability of target while being excluded from neighbourhood were deemed the most significant for model predictions. 
 As Figure~\ref{fig:interptretation} shows, a performance of the model quickly deteriorates with the removal of important triplets from the context. 
-% The visualization of the experiment's outcome is presented in Figure~\ref{fig:interptretation}.
 This implies potential avenues for improvement by prioritizing significant triplets selection prior to model training.
-% Additionally, attention maps revealed significant weights of relevant neighbors, an example is provided in Appendix ~\ref{sec:attention_maps}.
 Moreover, we analyzed attention maps of the model train on Wikidata5M and found that it indeed pays attention to relevant neighbors.
-% , e.g. Appendix~\ref{sec:attention_maps}.
 
 The analysis shows that adding relevant graph context information greatly enhances link prediction. Hence one way of improving performance is increasing neighborhood size by adding k-hop neighbors. Due to the quadratic complexity of attention and the limited input size of pretrained transformers, processing exponentially growing neighborhoods would be computationally expensive. To deal with large input sizes one can use efficient T5 architectures with input sizes up to 32k \cite{guo-etal-2022-longt5} and 64k \cite{ainslie2023colt5} tokens or recurrent approaches \cite{rmt_2022,hutchins2022blockrecurrent} that can sequentially process effectively unlimited neighborhood sizes. Another potential way of subgraph selection is to add relevant but more distant knowledge graph information, such as random walks or more sophisticated methods \cite{das2018minerva}.
 
 \begin{table}%[h]
   \caption{Adding relevant neighbors improves link prediction for T5-small on the Wikidata test set. The table shows the exact match depending on a hint of the target entity's appearance as a part of the model input.}
   \label{tab:target_inclusion}
-  % \begin{center}
-  % \begin{small}
   \begin{tabular}{lccr}
     \toprule
     Target position &  T5 & T5 + Neighbors & frequency\\
@@ -288,303 +178,187 @@ The analysis shows that adding relevant graph context information greatly enhanc
     In task         & 0.93 & 0.94 \up & 5 \%  \\
     In neighborhood & 0.34 & 0.82 \up & 8 \% \\
     Not in input    & 0.18 & 0.24 \up & 87 \% \\
-    % \rule{0pt}{3ex}
     Total           & 0.23 & 0.32 \up & 100 \% \\
   \bottomrule
 \end{tabular}
-% \end{small}
 \vskip -0.1in
-% \end{center}
 \end{table}
 
 \section{Conclusions and Future work}
 Our study found that incorporating KG neighborhood information into a generative model's context can enhance the quality of the link prediction task. We trained the T5-small model on transductive Wikidata5M and inductive ILPC datasets with various configurations and showed that coupling the node and its neighborhood information together better represents the node. Our approach significantly outperformed baselines on the largest real-world KGCs, with a comparable or fewer number of parameters. We also demonstrated that OpenAI's \texttt{gpt-3.5-turbo} performance on the KGC task also benefits from neighborhood information without prior fine-tuning. In addition to the quality improvement, we analyzed the impact of neighborhood imputation, highlighting the significance of selecting relevant triplets or extending the model's context in future works. Furthermore, future studies could explore the impact of model size, the effect of neighborhood imputation on the datasets from other domains, and neighborhood selection strategies.
 
 \section*{Limitations}
-% - small models, only t5
-% - one model per one KG
-% - pretrained language models contain knowledge related to real world, custom (like bio) graphs are not well suited
-% - neighborhood selection is not optimal
-% if we add chatgpt results
-% - prompts could be not optimal
-% - we do not know training data
+
 Limitations of this study include the training of only relatively small models, with only T5 being employed. Further study of the benefits of larger models applied to KGC tasks should be performed. Additionally, each knowledge graph in this study was limited to only one model, which may not accurately represent more complex graphs that involve multiple datasets. Another limitation is that language models are better suited for real-world textual data and may not work well for KGC representing more specialized concepts, such as biology or medicine. Also, although neighborhood selection was performed, we cannot guarantee that the selected neighborhoods are optimal. Further works should include the way of extending the ability of models to capture larger parts of a graph or selecting the most relevant neighbors. Moreover, constructing prompts for testing GPT performance may not be optimal, and the model's maximal performance cannot be guaranteed without knowledge of its training data.
 
 
 
 /section{Построение структурированных знаний из текста}
 
-\begin{abstract}
-    This study explores a method for extending real-world knowledge graphs (specifically, Wikidata) by extracting triplets from texts with the aid of Large Language Models (LLMs). We propose a two-step pipeline that includes the initial extraction of entity candidates, followed by their refinement and linkage to the canonical entities and relations of the knowledge graph. Finally, we utilize Wikidata relation constraints to select only verified triplets. We compare our approach to a model that was fine-tuned on a machine-generated dataset and demonstrate that it performs better on natural data. Our results suggest that LLM-based triplet extraction from texts, with subsequent verification, is a viable method for real-world applications.
-     \end{abstract}
-    
-    \section{Introduction}
-    
-    \begin{figure*}[t]
-      \centering
-        \includegraphics[width=0.9\textwidth]{images/part5/pipeline.pdf}
-      \caption{\textbf{Proposed pipeline for KG extension.} First, we perform a prompt-based triplet extraction from input text with LLM. The output from this step is a list of triplets in JSON format with possibly inaccurate entity and relation names. Then, we retrieve canonical names of entities and relations for extracted triplets and use them in an LLM prompt to refine triplets. Finally, the refined output is verified with KG ontology to ensure consistency. }
-      \label{fig:full_pipeline}
-      \vskip -0.2in
-    \end{figure*}
-    
-    Today, a vast amount of knowledge exists in unstructured textual formats such as books, articles, news reports, blog posts, and social media. Knowledge graphs (KG), which organize data in a structured form, are crucial for making world knowledge accessible across various applications. One of the largest open real-world knowledge graphs, WikiData~\cite{vrande2012wikidata}, contains over 1.54 billion items and is maintained collaboratively by volunteers. Keeping such a resource up-to-date requires significant manual curation. Populating knowledge graphs with information extracted from texts presents a promising solution to this challenge, aiming to automate the process, keep these databases relevant and updated, and help the community support them.
-    
-    Knowledge graphs (KGs) are directed multi-relational graphs that use entities as nodes and their relationships as edges. To represent KGs, a set of triplets referred to as (head entity, relation, tail entity) or (h, r, t) is used. KGs provide a structured representation of facts regarding both real-world objects and abstract concepts.
-    % , and widely used in applications.
-    % KGs as a rich source of structured content, are frequently utilized in a variety of applications, such as recommendation systems, data mining, information retrieval, and question-answering.
-    
-    Knowledge Extraction, or Triplet Extraction is a crucial task towards automatically constructing large-scale KGs. Such methods are used to identify entity pairs and their relationships in unstructured texts. Three independent steps are usually involved in the KG construction: 1) entity discovery, 2) coreference resolution, and 3) relation extraction. Unfortunately, in this pipeline errors in entity discovery propagate to the subsequent stages limiting overall performance. 
-    To address this issue, approaches have recently been developed to jointly extract entities and relations from texts \cite{melnyk2021grapher}. Such methods tackle both tasks simultaneously as a sequence-to-sequence learning problem in an end-to-end manner using generative language models (LMs). End-to-end generative triple extraction eliminates the issue of error propagation and improves efficiency without requiring additional annotation.
-    However, training a separate LM for a specific KG has several limitations, including 1) requiring labeled corpora of sufficient size for LM training; 2) the need for a re-training model as the KG may actively evolve or LM re-training for a different KG, e.g. KG with distinct ontology, entity, and relation set or a KG from other domain. The last limitation is mediated by the fact that during training LM was provided with only the entities and relations that were present in the previous version of KG or an entirely different KG with a predefined ontology and triplet set.
-    
-    Large Language Models (LLMs), such as ChatGPT and GPT4, with billions of parameters, are empowering natural language processing with their universal language understanding and generation capabilities, thus creating possibilities for end-to-end KG construction. Although the most advanced methods for generative information extraction depend on fine-tuning sequence-to-sequence models, recent studies~\cite{li2023evaluating} propose that triplet extraction may be possible with LLM by in-context learning (ICL)~\cite{brown2020language} and instruction following~\cite{ouyang2022training}. Using these methods can be advantageous because it eliminates the need for training or fine-tuning models. Thus, triplet extraction can be accomplished by LLMs with the provision of carefully crafted prompts (instructions and in-context examples) and mechanisms for linking names of generated entities and relations to the canonical names from KG.
-    
-    In this study, we explore the ability of LLMs for tasks of knowledge extraction and KG extension for Wikidata. Despite previous works documenting the poor ability of LLMs to extract structured information from texts \cite{josifoski2023exploiting}, we propose a novel two-step pipeline, which includes 1) LLM to extract entity candidates; 2) LLM to refine triplets by linking exact names of entities and relations based on similar entities and relations from KG; 3) ontology-based triplets verification to enhance the quality of LLM output. Furthermore, we evaluate our pipeline and model that was fine-tuned on the SynthIE dataset to assess their efficacy on real-world data.
-    
-    \section{Methods}
-    \begin{figure*}[t]
-      \centering
-        \includegraphics[width=0.7\textwidth]{images/part5/ontology-verification.pdf}
-      \caption{\textbf{Ontology-based verification.} Triplets generated in the proposed pipeline undergo ontology verification aimed at ensuring consistency between the output and KG ontology. Triplet claimed to be valid in case its subject's and object's hierarchy types intersect with the types from relation constraints. The ontology hierarchy is simplified for demonstration purposes. P31 and P279 stand for \textit{"instance of"} and \textit{"subclass of"} relations correspondingly.}
-      \label{fig:ontology}
-      \vskip -0.2in
-    \end{figure*}
-    
-    To extract triplets from texts, we propose a multi-step pipeline (Figure~\ref{fig:full_pipeline}). The first step (Section~\ref{sec:1st_step}) is a  candidate triplets extraction. Triplet candidates may include entities and relation names that do not directly match the formats used in the WikiData KG. Therefore, the second step (Section~\ref{sec:triplet-retrieval}) refines these candidates based on similar entities and relations that are present in the KG. Finally, we verify the refined triplets and filter out those that are not consistent with the KG ontology (Section~\ref{sec:filtration}). This involves checking relation constraints and ensuring compatibility of entity types. We use the OpenAI \texttt{gpt-3.5-turbo} model to implement the first two steps of the pipeline by providing in-context examples and instructions.
-    % Figure~\ref{fig:full_pipeline} illustrates the entire proposed pipeline.
-    
-    \subsection{Datasets}
-    Gathering datasets for the triplet extraction task is both time-consuming and costly as annotators must be familiar with all the entities and relations from a KG to reason about every potential fact stated in the text. In the case of large real-world KGs such as Wikidata, it represents a substantial challenge. This leads to the lack of quality datasets for the KG construction task, while only sparse or noisy datasets are available. For instance, texts in the largest accessible dataset, REBEL~\cite{huguet-cabot-navigli-2021-rebel}, frequently lack extractable information about entities in the text, instead substituting pronouns for factual information about entities. 
-    Moreover, target triplets in REBEL also do not contain all the facts provided in the input or are partially inaccurate \cite{josifoski2023exploiting}. Other popular datasets for this task have similar problems ~\cite{josifoski2021genie}.
-    
-    Evaluation on distantly supervised datasets like REBEL would therefore give an extremely erroneous assessment of the models' performance. Therefore, we used a higher quality SynthIE~\cite{josifoski2023exploiting} dataset. Despite the fact that the dataset was synthetically generated, authors claimed LLMs' inability to solve the information extraction task. Therefore, the task was considered asymmetrical since LLMs can produce text from KG triplets but not KG from text.
-    
-    \subsection{Extraction of triplet candidates}
-    
-    % \begin{table*}[t]
-    % \caption{\hl{Ablations}}
-    % \vskip -0.1in
-    % \label{tab:results}
-    % \label{tab:ablation}
-    % \begin{center}
-    % \begin{small}
-    % % \begin{sc}
-    
-    % \begin{tabular}{@{}llllllllllll@{}}
-    % \toprule
-    % {Method} & \multicolumn{3}{c}{Metrics} & \multirow{1}{*} {Conclusion}\\
-    % \cmidrule(lr){2-4}
-    %   & P & R & F1 & \\
-    % \midrule
-    % Zero-shot & 0.65 &  0.09  & 0.16  & \multirow{1}{*}{Few-shot helps}\\
-    % \cmidrule(lr){1-4}
-    %  Few-shot   & 0.59  & 0.52 & 0.55 \\
-    % \midrule
-    
-    % \midrule
-    % Single-step prompt  & 0.60 & 0.44 & 0.51 & \multirow{1}{*}{RAG helps}\\
-    %  \cmidrule(lr){1-4}
-    % RAG-enhanced two-step prompting & 0.59  & 0.52 & 0.55 \\
-    % \midrule
-    
-    % \midrule
-    %  Single-step prompt  & 0.58 & 0.44 & 0.5 & \multirow{1}{*}{Verification helps}\\
-    % \cmidrule(lr){1-4}
-    %  Single-step prompt + verification  & 0.60 & 0.44 & 0.51 \\
-    % \cmidrule(lr){1-4}
-    % RAG-enhanced two-step prompting &  0.55  & 0.52 & 0.53 \\
-    % \cmidrule(lr){1-4}
-    % RAG-enhanced two-step prompting + verification &0.59  & 0.52 & 0.55 \\
-    
-    % \bottomrule
-    % \end{tabular}
-    
-    % % \end{sc}
-    % \end{small}
-    % \end{center}
-    % \vskip -0.1in
-    % \end{table*}
-    \label{sec:1st_step}
-    In the first step, we extract triplet candidates from the provided text. We benchmarked OpenAI \texttt{gpt-3.5-turbo}\footnote{\texttt{gpt-3.5-turbo-0125}: \url{https://platform.openai.com/docs/models/gpt-3-5}} on triplet extraction with in-context examples. In the prompt, we described the essence of the task and used three examples from the train split from the Wiki-cIE Code dataset~\cite{josifoski2023exploiting} for demonstration. 
-    % We provide details on prompts construction in Appendix~\ref{sec:prompts}. 
-    In this step, for example, one of the triplets extracted by LLM from the text 
-    \textit{"Tahiti Honey" is a film written by Frederick Kohnner} would be:
-    \textit{"Tahiti Honey", "written by", "Frederick Kohner"}.
-    
-    % \textit{"Tahiti Honey" is a film written by Frederick Kohnner} would be:
-    % \textit{(\colorbox{c_head}{"Tahiti Honey"}, \colorbox{c_relation}{"written by"}, \colorbox{c_tail}{"Frederick Kohner"})}.
+This study explores a method for extending real-world knowledge graphs (specifically, Wikidata) by extracting triplets from texts with the aid of Large Language Models (LLMs). We propose a two-step pipeline that includes the initial extraction of entity candidates, followed by their refinement and linkage to the canonical entities and relations of the knowledge graph. Finally, we utilize Wikidata relation constraints to select only verified triplets. We compare our approach to a model that was fine-tuned on a machine-generated dataset and demonstrate that it performs better on natural data. Our results suggest that LLM-based triplet extraction from texts, with subsequent verification, is a viable method for real-world applications.
+
+\section{Introduction}
+
+\begin{figure*}[t]
+  \centering
+    \includegraphics[width=0.9\textwidth]{images/part5/pipeline.pdf}
+  \caption{\textbf{Proposed pipeline for KG extension.} First, we perform a prompt-based triplet extraction from input text with LLM. The output from this step is a list of triplets in JSON format with possibly inaccurate entity and relation names. Then, we retrieve canonical names of entities and relations for extracted triplets and use them in an LLM prompt to refine triplets. Finally, the refined output is verified with KG ontology to ensure consistency. }
+  \label{fig:full_pipeline}
+  \vskip -0.2in
+\end{figure*}
+
+Today, a vast amount of knowledge exists in unstructured textual formats such as books, articles, news reports, blog posts, and social media. Knowledge graphs (KG), which organize data in a structured form, are crucial for making world knowledge accessible across various applications. One of the largest open real-world knowledge graphs, WikiData~\cite{vrande2012wikidata}, contains over 1.54 billion items and is maintained collaboratively by volunteers. Keeping such a resource up-to-date requires significant manual curation. Populating knowledge graphs with information extracted from texts presents a promising solution to this challenge, aiming to automate the process, keep these databases relevant and updated, and help the community support them.
+
+Knowledge graphs (KGs) are directed multi-relational graphs that use entities as nodes and their relationships as edges. To represent KGs, a set of triplets referred to as (head entity, relation, tail entity) or (h, r, t) is used. KGs provide a structured representation of facts regarding both real-world objects and abstract concepts.
+
+Knowledge Extraction, or Triplet Extraction is a crucial task towards automatically constructing large-scale KGs. Such methods are used to identify entity pairs and their relationships in unstructured texts. Three independent steps are usually involved in the KG construction: 1) entity discovery, 2) coreference resolution, and 3) relation extraction. Unfortunately, in this pipeline errors in entity discovery propagate to the subsequent stages limiting overall performance. 
+To address this issue, approaches have recently been developed to jointly extract entities and relations from texts \cite{melnyk2021grapher}. Such methods tackle both tasks simultaneously as a sequence-to-sequence learning problem in an end-to-end manner using generative language models (LMs). End-to-end generative triple extraction eliminates the issue of error propagation and improves efficiency without requiring additional annotation.
+However, training a separate LM for a specific KG has several limitations, including 1) requiring labeled corpora of sufficient size for LM training; 2) the need for a re-training model as the KG may actively evolve or LM re-training for a different KG, e.g. KG with distinct ontology, entity, and relation set or a KG from other domain. The last limitation is mediated by the fact that during training LM was provided with only the entities and relations that were present in the previous version of KG or an entirely different KG with a predefined ontology and triplet set.
+
+Large Language Models (LLMs), such as ChatGPT and GPT4, with billions of parameters, are empowering natural language processing with their universal language understanding and generation capabilities, thus creating possibilities for end-to-end KG construction. Although the most advanced methods for generative information extraction depend on fine-tuning sequence-to-sequence models, recent studies~\cite{li2023evaluating} propose that triplet extraction may be possible with LLM by in-context learning (ICL)~\cite{brown2020language} and instruction following~\cite{ouyang2022training}. Using these methods can be advantageous because it eliminates the need for training or fine-tuning models. Thus, triplet extraction can be accomplished by LLMs with the provision of carefully crafted prompts (instructions and in-context examples) and mechanisms for linking names of generated entities and relations to the canonical names from KG.
+
+In this study, we explore the ability of LLMs for tasks of knowledge extraction and KG extension for Wikidata. Despite previous works documenting the poor ability of LLMs to extract structured information from texts \cite{josifoski2023exploiting}, we propose a novel two-step pipeline, which includes 1) LLM to extract entity candidates; 2) LLM to refine triplets by linking exact names of entities and relations based on similar entities and relations from KG; 3) ontology-based triplets verification to enhance the quality of LLM output. Furthermore, we evaluate our pipeline and model that was fine-tuned on the SynthIE dataset to assess their efficacy on real-world data.
+
+\section{Methods}
+\begin{figure*}[t]
+  \centering
+    \includegraphics[width=0.7\textwidth]{images/part5/ontology-verification.pdf}
+  \caption{\textbf{Ontology-based verification.} Triplets generated in the proposed pipeline undergo ontology verification aimed at ensuring consistency between the output and KG ontology. Triplet claimed to be valid in case its subject's and object's hierarchy types intersect with the types from relation constraints. The ontology hierarchy is simplified for demonstration purposes. P31 and P279 stand for \textit{"instance of"} and \textit{"subclass of"} relations correspondingly.}
+  \label{fig:ontology}
+  \vskip -0.2in
+\end{figure*}
+
+To extract triplets from texts, we propose a multi-step pipeline (Figure~\ref{fig:full_pipeline}). The first step (Section~\ref{sec:1st_step}) is a  candidate triplets extraction. Triplet candidates may include entities and relation names that do not directly match the formats used in the WikiData KG. Therefore, the second step (Section~\ref{sec:triplet-retrieval}) refines these candidates based on similar entities and relations that are present in the KG. Finally, we verify the refined triplets and filter out those that are not consistent with the KG ontology (Section~\ref{sec:filtration}). This involves checking relation constraints and ensuring compatibility of entity types. We use the OpenAI \texttt{gpt-3.5-turbo} model to implement the first two steps of the pipeline by providing in-context examples and instructions.
+
+\subsection{Datasets}
+Gathering datasets for the triplet extraction task is both time-consuming and costly as annotators must be familiar with all the entities and relations from a KG to reason about every potential fact stated in the text. In the case of large real-world KGs such as Wikidata, it represents a substantial challenge. This leads to the lack of quality datasets for the KG construction task, while only sparse or noisy datasets are available. For instance, texts in the largest accessible dataset, REBEL~\cite{huguet-cabot-navigli-2021-rebel}, frequently lack extractable information about entities in the text, instead substituting pronouns for factual information about entities. 
+Moreover, target triplets in REBEL also do not contain all the facts provided in the input or are partially inaccurate \cite{josifoski2023exploiting}. Other popular datasets for this task have similar problems ~\cite{josifoski2021genie}.
+
+Evaluation on distantly supervised datasets like REBEL would therefore give an extremely erroneous assessment of the models' performance. Therefore, we used a higher quality SynthIE~\cite{josifoski2023exploiting} dataset. Despite the fact that the dataset was synthetically generated, authors claimed LLMs' inability to solve the information extraction task. Therefore, the task was considered asymmetrical since LLMs can produce text from KG triplets but not KG from text.
+
+\subsection{Extraction of triplet candidates}
+
+\label{sec:1st_step}
+In the first step, we extract triplet candidates from the provided text. We benchmarked OpenAI \texttt{gpt-3.5-turbo}\footnote{\texttt{gpt-3.5-turbo-0125}: \url{https://platform.openai.com/docs/models/gpt-3-5}} on triplet extraction with in-context examples. In the prompt, we described the essence of the task and used three examples from the train split from the Wiki-cIE Code dataset~\cite{josifoski2023exploiting} for demonstration. 
+In this step, for example, one of the triplets extracted by LLM from the text 
+\textit{"Tahiti Honey" is a film written by Frederick Kohnner} would be:
+\textit{"Tahiti Honey", "written by", "Frederick Kohner"}.
+
+However, the subject, object, and relation in the extracted triplet are not necessarily normalized, i.e. they could be inconsistent with the name conventions used in the original KG.
+\subsection{Refinement of triplet candidates}
+\label{sec:triplet-retrieval}
+The primary limitation of LLMs applied to KG construction is that, despite their ability to extract the essential information from a text, they are still unable to link extracted names with the canonical ones of Wikidata entities or relations. To address this limitation, we used a two-step LLM prompting strategy. After extracting information from the text on the first step, the FAISS~\cite{faiss} index was used to retrieve canonical names from the Wikidata KG, ranked by cosine similarity to the entities and relations from identified triplets. The index was built using pre-trained Contriever embeddings \cite{contriever} that demonstrated robustness and strong performance across various retrieval scenarios. Based on the top-5 retrieved exact names of entities and relations similar to the ones extracted in the first step, we define the task of choosing the names that fit the context of a text and triplet itself. 
+For example, for the above-mentioned triplet, there would be retrieved 5 canonical names ranked by similarity to the extracted one for both subject and object entities and relation: \\
 
 
-    % \begin{multline}
-    % \indent\indent\textit{"subject": "Tahiti Honey", \\
-    % \indent\indent"relation": "written by", \\
-    % \indent\indent"object": "Frederick Kohner"}.
-    % \end{multline}
-    
-    However, the subject, object, and relation in the extracted triplet are not necessarily normalized, i.e. they could be inconsistent with the name conventions used in the original KG.
-    \subsection{Refinement of triplet candidates}
-    \label{sec:triplet-retrieval}
-    The primary limitation of LLMs applied to KG construction is that, despite their ability to extract the essential information from a text, they are still unable to link extracted names with the canonical ones of Wikidata entities or relations. To address this limitation, we used a two-step LLM prompting strategy. After extracting information from the text on the first step, the FAISS~\cite{faiss} index was used to retrieve canonical names from the Wikidata KG, ranked by cosine similarity to the entities and relations from identified triplets. The index was built using pre-trained Contriever embeddings \cite{contriever} that demonstrated robustness and strong performance across various retrieval scenarios. Based on the top-5 retrieved exact names of entities and relations similar to the ones extracted in the first step, we define the task of choosing the names that fit the context of a text and triplet itself. 
-    % The full structure of the second step prompt is described in Appendix~\ref{sec:prompts}. 
-    For example, for the above-mentioned triplet, there would be retrieved 5 canonical names ranked by similarity to the extracted one for both subject and object entities and relation: \\
-    % \\\\
-    % \begin{multline}
-    % \{ \\ 
-    % \textit{
-    % \indent"written by": ["lyrics by", "adapted by", \\
-    % \indent"produced by", "screenwriter", "author"], \\ \\
-    % \indent"Tahiti Honey": ["Tahiti Honey", "Honey", \\ 
-    % \indent"Honey Chile", "Celtic Honey", "Tahitipresse"], \\ \\
-    % \indent"Frederick Kohner": ["Frederick Kohner", \\
-    % \indent"Paul Kohner", "Adolf Kohner", \\
-    % \indent"Susan Kohner", "Henry Rohner"]}\\ 
-    % \}.
-    % \end{multline}
-    % \textit{\small
-    % \indent\colorbox{c_relation}{"written by"}: ["lyrics by", "adapted by", "produced by", \\ \indent\indent"screenwriter", "author"], \\
-    % \indent\colorbox{c_head}{"Tahiti Honey"}: ["Tahiti Honey", "Honey", \\
-    % \indent\indent"Honey Chile", "Celtic Honey", "Tahitipresse"], \\
-    % \indent\colorbox{c_tail}{"Frederick Kohner"}: ["Frederick Kohner", \\
-    % \indent\indent"Paul Kohner", "Adolf Kohner", "Susan Kohner", \\\indent\indent"Henry Rohner"]}.
+\textit{"written by": ["lyrics by", "adapted by", "produced by", "screenwriter", "author"]}
 
-    \textit{"written by": ["lyrics by", "adapted by", "produced by", "screenwriter", "author"]}
+\textit{"Tahiti Honey": ["Tahiti Honey", "Honey", 
+"Honey Chile", "Celtic Honey", "Tahitipresse"]}
 
-    \textit{"Tahiti Honey": ["Tahiti Honey", "Honey", 
-    "Honey Chile", "Celtic Honey", "Tahitipresse"]}
+\textit{"Frederick Kohner": ["Frederick Kohner",
+"Paul Kohner", "Adolf Kohner", "Susan Kohner", "Henry Rohner"]}
 
-    \textit{"Frederick Kohner": ["Frederick Kohner",
-    "Paul Kohner", "Adolf Kohner", "Susan Kohner", "Henry Rohner"]}
-    
-    As a result, after choosing the corresponding names that fit the context of the text, the refined triplet is
-    \textit{"Tahiti Honey", "screenwriter", "Frederick Kohner"}
-    % \textit{(\colorbox{c_head}{"Tahiti Honey"}, \colorbox{c_relation}{"screenwriter"}, \colorbox{c_tail}{"Frederick Kohner"})}.
-    % \begin{multline}
-    % \{ \\
-    % \indent\indent\textit{"subject": "Tahiti Honey", \\
-    % \indent\indent"relation": "screenwriter", \\
-    % \indent\indent"object": "Frederick Kohner"} \\
-    % \}. \\
-    % \end{multline}
-    
-    
-    \subsection{Ontology-based verification}
-    \label{sec:filtration}
-    To increase the reliability of the pipeline outputs to possible LLM hallucinations, we proposed an automatic verification of generated triplets based on the KG ontology. An ontology is a semantical model for knowledge representation in a specific domain, which specifies types of entities represented in this domain as well as constraints regulating how the entities can interact through relations. To ensure the consistency between generated triplets and the WikiData KG ontology model, we used information about types of subjects and objects from generated triplets and relation constraints that specify which types of entities can be connected through the extracted relations.
-    
-    After both stages of prompting, output triplets underwent an automated check on semantics and property constraints available in Wikidata KG. For this purpose, we used \textit{subject} (Q21503250) and \textit{value} (Q21510865) constraints of the extracted relation. These constraints are attributed to a specific relation and declare which type of head and tail entity correspondingly should be used in a triplet with this relation. Further, classes of both subject and value entities from generated triplet were extracted from Wikidata Query Service (WDQS) by querying \textit{"instance of"} (P31) and \textit{"subclass of"} (P279) properties of subject and object up to the root of their subclass hierarchy. 
-    % The full SPARQL queries used to retrieve WDQS are described in Appendix~\ref{sec:queries}.
-    % Triplet claimed to be valid in case both obtained hierarchical types of subject and object intersected with corresponding ones from relation constraints.
-    A triplet is considered valid if the hierarchical types of both the subject and object align with the types specified in the relation constraints.
-    In this way, the validity of the logical structure of extracted information was ensured. An example of the ontology verification process is schematically described in Figure~\ref{fig:ontology}.
-    
-    
-    \section{Results and discussion}
-    \begin{table*}[t]
-    \caption{The LLM-based two-stage strategy for triplet refinement and ontology verification increases performance in KG construction tasks.
-    % Results are aggregated by mean and variance from three separate launches of the pipeline with different combinations of few-shot examples.
-    We report mean and std of three runs with different in-context examples.
-    }
-    % \vskip -0.2in
-    % \label{tab:triplet-results}
-    \label{tab:ablation}
-    % \begin{center}
-    % \begin{small}
-    % \begin{sc}
-    \centering
-    
-    \begin{tabular}{@{}llllllllllll@{}}
-    \toprule
-    {Method} & \multicolumn{3}{c}{Metrics (SynthIE-text-small)} & \multirow{1}{*} {Conclusion}\\
-    \cmidrule(lr){2-4}
-     & F1 & Precision & Recall  & \\
-    
-    \midrule
-    Full pipeline   & \textbf{0.55}\up\tiny{$\pm{0.01}$} & 0.59\up \tiny{$\pm{0.03}$}& \textbf{0.52} \tiny{$\pm{0.005}$} &  \\
-    Full pipeline | no verification & 0.53 \tiny{$\pm{0.01}$} &  0.55\tiny{$\pm{0.03}$} & \textbf{0.52}\tiny{$\pm{0.005}$} & Verification helps \\
-    \midrule
-    
-    Full pipeline | no refinement  & 0.51\tiny{$\pm{0.01}$} & 0.60\up\tiny{$\pm{0.03}$}& 0.44 \tiny{$\pm{0.006}$}  & \multirow{1}{*}{Refinement helps}\\
-    Full pipeline | no refinement | no verification & 0.50 \tiny{$\pm{0.01}$} & 0.58\tiny{$\pm{0.03}$} & 0.44  \tiny{$\pm{0.006}$}  & \multirow{1}{*}{Verification helps}\\
-    
-    \midrule
-    
-    Full pipeline | no in-context examples & 0.16 & \textbf{0.65} &  0.09    & \multirow{1}{*}{In-context examples help}\\
-     
-    \bottomrule
-    \end{tabular}
-    
-    % % \end{sc}
-    % \end{small}
-    % \end{center}
-    % \vskip -0.2in
-    \end{table*}
-    
-    \subsection{Proposed pipeline improves LLM KG extension performance}
-    
-    \begin{table*}[t]
-    \vskip -0.1in
-    \caption{
-    % The proposed approach show strong zero-shot performance on SynthIE-text-small. Yet, the performance of the SynthIE model, directly finetuned on the SynthIE-text-small, is better due to the specifics of the synthetic dataset. Our pipeline shines on the separate set with human evaluation, outperforming SynthIE by a wide margin. ($^*$) results were obtained by the model fine-tuned on the dataset.
-    Our proposed two-step approach outperforms the SynthIE model on a natural language set with human evaluation. While it does not outperform the SynthIE model tuned directly on the SynthIE-text-small dataset and learned its specifics, low IoU metric indicate that the two methods produce very different predictions. ($^*$) results were obtained by the model fine-tuned on the dataset.}
-    \vskip -0.16in
-    \label{tab:comparison}
-    % \begin{center}
-    % \begin{small}
-    %\begin{sc}
-    \centering
-    \resizebox{0.9\textwidth}{!}{
-    \begin{tabular}{@{}llllllllllll@{}}
-    \toprule
-    \multirow{1}{*}{Model} & \multicolumn{3}{c}{SynthIE-text-small} & \multicolumn{3}{c}{Natural Language corpora}\\
-    \cmidrule(lr){2-4}\cmidrule(lr){5-7}
-    & F1 & Precision & Recall & Precision & \# Correct & \makecell{IoU}  \\
-    \midrule
-    Prompt me one more time (Ours) & 0.55 \tiny{$\pm{0.01}$} & 0.59  \tiny{$\pm{0.03}$} & 0.52 \tiny{$\pm{0.005}$} & 0.74 & 187 &\multirow{2}{*} {0.08} \\
-     \cmidrule(lr){1-4} \cmidrule(lr){5-6}
-    SynthIE T5-large~\cite{josifoski2023exploiting} & $0.88^*$ & $0.87^*$ &  $0.88^*$ & 0.55 & 201\\
-    \bottomrule
-    \end{tabular}
-    
-    }
-    %\end{sc}
-    % \end{small}
-    % \end{center}
-    \vskip -0.2in
-    \end{table*}
-    
-    
-    We suggest that triplet extraction can be accomplished by LLMs with the provision of carefully designed prompts and refining mechanisms for converting imprecise names of generated outputs to the canonical ones from KG. Table \ref{tab:ablation} shows performance metrics of the full and ablated method. 
-    
-    It is worth noting that the most crucial part of the pipeline is providing the LLM with representative examples of triplets. Using two-step prompting with example demonstration and triplet verification results in a five times better F1 score compared to the same pipeline without example demonstration.
-    
-    Enhancing the pipeline with the triplet refinement step significantly improves the recall score compared to the single-prompt approach. In turn, the verification step is essential to retain the precision score after triplet refinement comparable to one obtained solely after the first step. In a single-prompt setup, verification does not provide significant improvement.  The explanation for this is that after the first step, all triplets whose names KG lacks are automatically filtered out, thus leaving only those that have been referred to most accurately in the text, so LLM can identify them precisely. In the second step, however, LLM may lack knowledge of the specific KG ontology while composing new triplets with exact names of entities and relations that were originally inaccurately specified in the text. Providing ontologies in the second prompt would make it unreasonably large, so we used filtering in the post-processing step to retain a higher precision score, while not reducing the recall value.
-    
-    \subsection{Synthetic data is not a cure-all}
-    
-    Table~\ref{tab:comparison} demonstrates the score of the entire proposed pipeline compared to SynthIE T5-large, the best-reported model trained on SynthIE dataset \cite{josifoski2023exploiting}. Although the improved two-step pipeline with verification and in-context examples demonstrates the potential to improve the quality of KG construction with LLM, its performance on synthetic data compared to the pre-trained model appears rather modest. 
-    
-    In turn, by manually reviewing the synthetic dataset, we observed frequent inconsistencies between the texts and the target triplets.
-    % , examples of which are provided in Appendix~\ref{sec:inconsistencies}. 
-    To demonstrate the shortcomings of the synthetically generated dataset, we chose a strategy different from utilized in \cite{josifoski2023exploiting} for REBEL. Instead of assessing the whole dataset itself, we selected 100 random samples from the WikicIE-test-small. Employing the reference entities used for the generation of each text, we manually added similar texts in natural language about these entities from Wikipedia paragraphs. In this way, we obtained a set of texts in natural language referring to the KG entities from the original dataset. Both LM trained on the synthetic data and our LLM-based pipeline generated triplets based on these texts. Then, LM's and LLM's outputs were subjected to human evaluation. 
-    % described in detail in Appendix~\ref{sec:nl_dataset}
-    Results of human evaluation are presented in Table~\ref{tab:comparison}. LLM-based pipeline outperforms SynthIE T5-large by a wide margin in terms of human-evaluated precision. The pre-trained model tends to generate triplets that do not directly fit the context of the text, using learned triplets instead of extracting relevant ones from the context. The reason for this is the quality of the dataset used for training and for in-context learning in our pipelines, due to the inconsistencies between triplets in the annotation and input text. 
-    
-    It is also worth noting that the correct triplets predicted by the two models exhibit notable differences from each other. The intersection over union (IoU) metric shows that only 8 percent of correct triplets are predicted by both models. This suggests that each model has a different area of specialization, excelling in different aspects of information extraction. Consequently, their predictions may be combined, yielding further improvements in the pipeline performance. 
-    
-    \section{Conclusions and Future work}
-    Our study identified that LLMs coupled with a two-stage strategy for triplet refinement and ontology verification are competitive in extracting triplets from texts. %, although stated that LLMs are not well suited for such a task~\cite{josifoski2023exploiting}. 
-    Furthermore, the proposed LLM-based pipeline shows better performance on non-synthetic data, compared to the model fine-tuned on the SynthIE dataset, making our approach a promising way to address the extraction of triplets from real-world data.
-    
-    Exploration of possible improvement mechanisms for the triplet refinement step could be a focus of further studies to obtain quality comparable with methods fine-tuned for this task. Current entity and relation linking uses cosine similarity on pre-trained embeddings applied to canonical names from Wikidata. However, enhancing retrieval augmented part is crucial to increase the recall of the whole system. Hence further research may focus on fine-tuning embeddings for this task and the use of additional information from Wikidata, e.g. entities from node neighborhood~\cite{kochsiek2023friendly,chepurova-etal-2023-better}, entity or relation textual description.
-    
-    We identified drawbacks in the synthetic dataset, which was established as one with superior quality in prior work~\cite{josifoski2023exploiting}. Considering the demonstrated potential of LLM applied to a triplet extraction task, the creation of smaller, yet higher quality benchmarks for LLM based on texts expressed in natural language could resolve challenges of dataset collection in terms of time and cost and eliminate a bias introduced by synthetic generation. 
-    
-    \section*{Limitations}
-    
-    \textbf{Fine-tuning Overhead.} Despite the significant performance improvement achieved by our two-stage pipeline with in-context examples, the models directly fine-tuned for specific graphs and datasets may still outperform our approach. This means that in cases where the text and information domain are sufficiently narrow and computational resources are available, specialized models may be preferred.
-    
-    \textbf{Domain Specifics.} Furthermore, the effectiveness of the proposed pipeline may vary depending on the domain of source text and knowledge graph. Particularly challenging is dealing with texts that are significantly different from the pre-training domain. The domain adaptation may require manual intervention such as augmentation of in-context examples with domain-specific terms. 
-    
-    \textbf{Prompt Sensitivity.} Our experiments have revealed the considerable influence that prompt quality exerts on the overall performance of the pipeline. This underscores the significance of prompt selection, as it directly affects the pipeline performance, particularly when extending its applicability to new domains.
-    
+As a result, after choosing the corresponding names that fit the context of the text, the refined triplet is
+\textit{"Tahiti Honey", "screenwriter", "Frederick Kohner"}
+
+\subsection{Ontology-based verification}
+\label{sec:filtration}
+To increase the reliability of the pipeline outputs to possible LLM hallucinations, we proposed an automatic verification of generated triplets based on the KG ontology. An ontology is a semantical model for knowledge representation in a specific domain, which specifies types of entities represented in this domain as well as constraints regulating how the entities can interact through relations. To ensure the consistency between generated triplets and the WikiData KG ontology model, we used information about types of subjects and objects from generated triplets and relation constraints that specify which types of entities can be connected through the extracted relations.
+
+After both stages of prompting, output triplets underwent an automated check on semantics and property constraints available in Wikidata KG. For this purpose, we used \textit{subject} (Q21503250) and \textit{value} (Q21510865) constraints of the extracted relation. These constraints are attributed to a specific relation and declare which type of head and tail entity correspondingly should be used in a triplet with this relation. Further, classes of both subject and value entities from generated triplet were extracted from Wikidata Query Service (WDQS) by querying \textit{"instance of"} (P31) and \textit{"subclass of"} (P279) properties of subject and object up to the root of their subclass hierarchy. 
+
+A triplet is considered valid if the hierarchical types of both the subject and object align with the types specified in the relation constraints.
+In this way, the validity of the logical structure of extracted information was ensured. An example of the ontology verification process is schematically described in Figure~\ref{fig:ontology}.
+
+
+\section{Results and discussion}
+\begin{table*}[t]
+\caption{The LLM-based two-stage strategy for triplet refinement and ontology verification increases performance in KG construction tasks.
+We report mean and std of three runs with different in-context examples.
+}
+\label{tab:ablation}
+\centering
+
+\begin{tabular}{@{}llllllllllll@{}}
+\toprule
+{Method} & \multicolumn{3}{c}{Metrics (SynthIE-text-small)} & \multirow{1}{*} {Conclusion}\\
+\cmidrule(lr){2-4}
+  & F1 & Precision & Recall  & \\
+
+\midrule
+Full pipeline   & \textbf{0.55}\up\tiny{$\pm{0.01}$} & 0.59\up \tiny{$\pm{0.03}$}& \textbf{0.52} \tiny{$\pm{0.005}$} &  \\
+Full pipeline | no verification & 0.53 \tiny{$\pm{0.01}$} &  0.55\tiny{$\pm{0.03}$} & \textbf{0.52}\tiny{$\pm{0.005}$} & Verification helps \\
+\midrule
+
+Full pipeline | no refinement  & 0.51\tiny{$\pm{0.01}$} & 0.60\up\tiny{$\pm{0.03}$}& 0.44 \tiny{$\pm{0.006}$}  & \multirow{1}{*}{Refinement helps}\\
+Full pipeline | no refinement | no verification & 0.50 \tiny{$\pm{0.01}$} & 0.58\tiny{$\pm{0.03}$} & 0.44  \tiny{$\pm{0.006}$}  & \multirow{1}{*}{Verification helps}\\
+
+\midrule
+
+Full pipeline | no in-context examples & 0.16 & \textbf{0.65} &  0.09    & \multirow{1}{*}{In-context examples help}\\
+  
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Proposed pipeline improves LLM KG extension performance}
+
+\begin{table*}[t]
+\vskip -0.1in
+\caption{
+Our proposed two-step approach outperforms the SynthIE model on a natural language set with human evaluation. While it does not outperform the SynthIE model tuned directly on the SynthIE-text-small dataset and learned its specifics, low IoU metric indicate that the two methods produce very different predictions. ($^*$) results were obtained by the model fine-tuned on the dataset.}
+\vskip -0.16in
+\label{tab:comparison}
+\centering
+\resizebox{0.9\textwidth}{!}{
+\begin{tabular}{@{}llllllllllll@{}}
+\toprule
+\multirow{1}{*}{Model} & \multicolumn{3}{c}{SynthIE-text-small} & \multicolumn{3}{c}{Natural Language corpora}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+& F1 & Precision & Recall & Precision & \# Correct & \makecell{IoU}  \\
+\midrule
+Prompt me one more time (Ours) & 0.55 \tiny{$\pm{0.01}$} & 0.59  \tiny{$\pm{0.03}$} & 0.52 \tiny{$\pm{0.005}$} & 0.74 & 187 &\multirow{2}{*} {0.08} \\
+  \cmidrule(lr){1-4} \cmidrule(lr){5-6}
+SynthIE T5-large~\cite{josifoski2023exploiting} & $0.88^*$ & $0.87^*$ &  $0.88^*$ & 0.55 & 201\\
+\bottomrule
+\end{tabular}
+}
+\vskip -0.2in
+\end{table*}
+
+
+We suggest that triplet extraction can be accomplished by LLMs with the provision of carefully designed prompts and refining mechanisms for converting imprecise names of generated outputs to the canonical ones from KG. Table \ref{tab:ablation} shows performance metrics of the full and ablated method. 
+
+It is worth noting that the most crucial part of the pipeline is providing the LLM with representative examples of triplets. Using two-step prompting with example demonstration and triplet verification results in a five times better F1 score compared to the same pipeline without example demonstration.
+
+Enhancing the pipeline with the triplet refinement step significantly improves the recall score compared to the single-prompt approach. In turn, the verification step is essential to retain the precision score after triplet refinement comparable to one obtained solely after the first step. In a single-prompt setup, verification does not provide significant improvement.  The explanation for this is that after the first step, all triplets whose names KG lacks are automatically filtered out, thus leaving only those that have been referred to most accurately in the text, so LLM can identify them precisely. In the second step, however, LLM may lack knowledge of the specific KG ontology while composing new triplets with exact names of entities and relations that were originally inaccurately specified in the text. Providing ontologies in the second prompt would make it unreasonably large, so we used filtering in the post-processing step to retain a higher precision score, while not reducing the recall value.
+
+\subsection{Synthetic data is not a cure-all}
+
+Table~\ref{tab:comparison} demonstrates the score of the entire proposed pipeline compared to SynthIE T5-large, the best-reported model trained on SynthIE dataset \cite{josifoski2023exploiting}. Although the improved two-step pipeline with verification and in-context examples demonstrates the potential to improve the quality of KG construction with LLM, its performance on synthetic data compared to the pre-trained model appears rather modest. 
+
+In turn, by manually reviewing the synthetic dataset, we observed frequent inconsistencies between the texts and the target triplets.
+
+To demonstrate the shortcomings of the synthetically generated dataset, we chose a strategy different from utilized in \cite{josifoski2023exploiting} for REBEL. Instead of assessing the whole dataset itself, we selected 100 random samples from the WikicIE-test-small. Employing the reference entities used for the generation of each text, we manually added similar texts in natural language about these entities from Wikipedia paragraphs. In this way, we obtained a set of texts in natural language referring to the KG entities from the original dataset. Both LM trained on the synthetic data and our LLM-based pipeline generated triplets based on these texts. Then, LM's and LLM's outputs were subjected to human evaluation. 
+
+Results of human evaluation are presented in Table~\ref{tab:comparison}. LLM-based pipeline outperforms SynthIE T5-large by a wide margin in terms of human-evaluated precision. The pre-trained model tends to generate triplets that do not directly fit the context of the text, using learned triplets instead of extracting relevant ones from the context. The reason for this is the quality of the dataset used for training and for in-context learning in our pipelines, due to the inconsistencies between triplets in the annotation and input text. 
+
+It is also worth noting that the correct triplets predicted by the two models exhibit notable differences from each other. The intersection over union (IoU) metric shows that only 8 percent of correct triplets are predicted by both models. This suggests that each model has a different area of specialization, excelling in different aspects of information extraction. Consequently, their predictions may be combined, yielding further improvements in the pipeline performance. 
+
+\section{Conclusions and Future work}
+Our study identified that LLMs coupled with a two-stage strategy for triplet refinement and ontology verification are competitive in extracting triplets from texts. 
+
+Furthermore, the proposed LLM-based pipeline shows better performance on non-synthetic data, compared to the model fine-tuned on the SynthIE dataset, making our approach a promising way to address the extraction of triplets from real-world data.
+
+Exploration of possible improvement mechanisms for the triplet refinement step could be a focus of further studies to obtain quality comparable with methods fine-tuned for this task. Current entity and relation linking uses cosine similarity on pre-trained embeddings applied to canonical names from Wikidata. However, enhancing retrieval augmented part is crucial to increase the recall of the whole system. Hence further research may focus on fine-tuning embeddings for this task and the use of additional information from Wikidata, e.g. entities from node neighborhood~\cite{kochsiek2023friendly,chepurova-etal-2023-better}, entity or relation textual description.
+
+We identified drawbacks in the synthetic dataset, which was established as one with superior quality in prior work~\cite{josifoski2023exploiting}. Considering the demonstrated potential of LLM applied to a triplet extraction task, the creation of smaller, yet higher quality benchmarks for LLM based on texts expressed in natural language could resolve challenges of dataset collection in terms of time and cost and eliminate a bias introduced by synthetic generation. 
+
+\section*{Limitations}
+
+\textbf{Fine-tuning Overhead.} Despite the significant performance improvement achieved by our two-stage pipeline with in-context examples, the models directly fine-tuned for specific graphs and datasets may still outperform our approach. This means that in cases where the text and information domain are sufficiently narrow and computational resources are available, specialized models may be preferred.
+
+\textbf{Domain Specifics.} Furthermore, the effectiveness of the proposed pipeline may vary depending on the domain of source text and knowledge graph. Particularly challenging is dealing with texts that are significantly different from the pre-training domain. The domain adaptation may require manual intervention such as augmentation of in-context examples with domain-specific terms. 
+
+\textbf{Prompt Sensitivity.} Our experiments have revealed the considerable influence that prompt quality exerts on the overall performance of the pipeline. This underscores the significance of prompt selection, as it directly affects the pipeline performance, particularly when extending its applicability to new domains.
